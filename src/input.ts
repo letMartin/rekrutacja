@@ -1,4 +1,6 @@
-export const INPUT = [
+import { Category } from './mockedApi';
+
+export const INPUT: Category[] = [
   {
     id: 1,
     name: 'Porządki',

@@ -1,4 +1,6 @@
-export const INCORRECT = [
+import { CategoryListElement } from './task';
+
+export const INCORRECT: CategoryListElement[] = [
   {
     id: 1,
     image: 'https://anotherprovider.com/categories/porzadki.jpg',
