@@ -1,4 +1,6 @@
-export const CORRECT = [
+import { CategoryListElement } from './task';
+
+export const CORRECT: CategoryListElement[] = [
   {
     children: [
       {

@@ -1,96 +1,81 @@
-import { getCategories } from "./mockedApi";
+import { Category } from './mockedApi';
 
-export interface CategoryListElement {
-  name: string;
+export type CategoryListElement = {
   id: number;
-  image: string;
   order: number;
-  children: CategoryListElement[];
+  name: string;
+  image: string;
   showOnHome: boolean;
-}
+  children: CategoryListElement[];
+};
 
-export const categoryTree = async (): Promise<CategoryListElement[]> => {
+export const getTitleNumber = (title: string): number | null => {
+  const parsedToInt = parseInt(
+    title.includes('#') ? title.split('#')[0] : title,
+    10
+  );
 
-  const res = await getCategories();
+  return isNaN(parsedToInt) ? null : parsedToInt;
+};
 
-  if (!res.data) {
+export const sortByOrder = (a: CategoryListElement, b: CategoryListElement) => {
+  return a.order - b.order;
+};
+
+export const mapCategory = (
+  { Title, id, MetaTagDescription, name, children }: Category,
+  isTopLevel = false
+): CategoryListElement => {
+  const order = getTitleNumber(Title) ?? id;
+
+  return {
+    id,
+    name,
+    order,
+    image: MetaTagDescription,
+    showOnHome: isTopLevel && Title.includes('#'),
+    children: children.map((child) => mapCategory(child)).sort(sortByOrder),
+  };
+};
+
+export const setShowOnHome = (
+  categories: CategoryListElement[]
+): CategoryListElement[] => {
+  const MAX_CATEGORIES_TO_SHOW = 5;
+  const DEFAULT_CATEGORIES_TO_SHOW = 3;
+
+  if (categories.length <= MAX_CATEGORIES_TO_SHOW) {
+    return categories.map((category) => ({ ...category, showOnHome: true }));
+  }
+
+  if (categories.some(({ showOnHome }) => showOnHome)) {
+    return categories;
+  }
+
+  return categories.map((category, index) => ({
+    ...category,
+    showOnHome: index < DEFAULT_CATEGORIES_TO_SHOW,
+  }));
+};
+
+export const categoryTree = async (
+  getData: () => Promise<{ data: Category[] }>
+): Promise<CategoryListElement[]> => {
+  try {
+    const { data } = await getData();
+
+    if (!data?.length) {
+      return [];
+    }
+
+    const mappedCategories = data
+      .map((category) => mapCategory(category, true))
+      .sort(sortByOrder);
+
+    return setShowOnHome(mappedCategories);
+  } catch (error) {
+    // Show error where and if needed
+    console.error('Error while fetching categories:', error);
     return [];
   }
-
-  const toShowOnHome: number[] = [];
-
-  let result = res.data.map((c1) => {
-    let order = c1.Title;
-    if (c1.Title && c1.Title.includes("#")) {
-      order = c1.Title.split("#")[0];
-      toShowOnHome.push(c1.id);
-    }
-
-    let orderL1 = parseInt(order);
-    if (isNaN(orderL1)) {
-      orderL1 = c1.id;
-    }
-    let l2Kids = c1.children
-      ? c1.children.map((c2) => {
-          let order2 = c1.Title;
-          if (c2.Title && c2.Title.includes("#")) {
-            order2 = c2.Title.split("#")[0];
-          }
-          let orderL2 = parseInt(order2);
-          if (isNaN(orderL2)) {
-            orderL2 = c2.id;
-          }
-          let l3Kids = c2.children
-            ? c2.children.map((c3) => {
-                let order3 = c1.Title;
-                if (c3.Title && c3.Title.includes("#")) {
-                  order3 = c3.Title.split("#")[0];
-                }
-                let orderL3 = parseInt(order3);
-                if (isNaN(orderL3)) {
-                  orderL3 = c3.id;
-                }
-                return {
-                  id: c3.id,
-                  image: c3.MetaTagDescription,
-                  name: c3.name,
-                  order: orderL3,
-                  children: [],
-                  showOnHome: false,
-                };
-              })
-            : [];
-          l3Kids.sort((a, b) => a.order - b.order);
-          return {
-            id: c2.id,
-            image: c2.MetaTagDescription,
-            name: c2.name,
-            order: orderL2,
-            children: l3Kids,
-            showOnHome: false,
-          };
-        })
-      : [];
-    l2Kids.sort((a, b) => a.order - b.order);
-    return {
-      id: c1.id,
-      image: c1.MetaTagDescription,
-      name: c1.name,
-      order: orderL1,
-      children: l2Kids,
-      showOnHome: false,
-    };
-  });
-
-  result.sort((a, b) => a.order - b.order);
-
-  if (result.length <= 5) {
-    result.forEach((a) => (a.showOnHome = true));
-  } else if (toShowOnHome.length > 0) {
-    result.forEach((x) => (x.showOnHome = toShowOnHome.includes(x.id)));
-  } else {
-    result.forEach((x, index) => (x.showOnHome = index < 3));
-  }
-
-  return result;
 };
